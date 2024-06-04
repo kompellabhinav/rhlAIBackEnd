@@ -22,13 +22,22 @@ app.http('saveThreadId', {
             return { status: 400, body: 'Invalid JSON format' };
         }
 
-        const phoneNumber = data.phoneNumber;
+        let phoneNumber = data.phoneNumber;
         const threadID = data.threadID;
 
         if (!phoneNumber || !threadID) {
             context.log('Invalid input: phoneNumber or threadID is missing.');
             return { status: 400, body: 'Please pass a valid phoneNumber and threadID in the request body.' };
         }
+
+        // Normalize phone number format
+        const normalizedPhoneNumber = phoneNumber.replace(/\D/g, '');
+        if (phoneNumber.startsWith('+')) {
+            phoneNumber = '+' + normalizedPhoneNumber;
+        } else {
+            phoneNumber = normalizedPhoneNumber;
+        }
+        console.log(phoneNumber)
 
         try {
             const cosmosClient = new CosmosClient({ endpoint: cosmosEndpointUri, key: cosmosPrimaryKey });
