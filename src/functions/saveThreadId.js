@@ -1,5 +1,6 @@
-const { CosmosClient } = require("@azure/functions")
+const { CosmosClient } = require("@azure/cosmos");
 const { app } = require('@azure/functions');
+const crypto = require('crypto');
 
 app.http('saveThreadId', {
     methods: ['POST'],
@@ -17,7 +18,7 @@ app.http('saveThreadId', {
         try {
             data = JSON.parse(body);
         } catch (error) {
-            context.log.error('Invalid JSON format');
+            context.log('Invalid JSON format');
             return { status: 400, body: 'Invalid JSON format' };
         }
 
@@ -25,7 +26,7 @@ app.http('saveThreadId', {
         const threadID = data.threadID;
 
         if (!phoneNumber || !threadID) {
-            context.log.error('Invalid input: phoneNumber or threadID is missing.');
+            context.log('Invalid input: phoneNumber or threadID is missing.');
             return { status: 400, body: 'Please pass a valid phoneNumber and threadID in the request body.' };
         }
 
@@ -52,13 +53,19 @@ app.http('saveThreadId', {
             if (items.length > 0) {
                 item = items[0];
                 threadList = JSON.parse(item.threads);
+
+                if (threadList.includes(threadID)) {
+                    context.log('Duplicate threadID found. Not adding.');
+                    return { status: 200, body: 'Thread ID already exists. Not added again.' };
+                }
+
                 threadList.push(threadID);
                 item.threads = JSON.stringify(threadList);
             } else {
                 // Create a new entry for the phone number
                 threadList = [threadID];
                 item = {
-                    id: require('crypto').randomBytes(16).toString("hex"),
+                    id: crypto.randomBytes(16).toString("hex"),
                     phoneNumber: phoneNumber,
                     threads: JSON.stringify(threadList)
                 };
@@ -69,7 +76,7 @@ app.http('saveThreadId', {
             context.log('Thread ID added successfully.');
             return { status: 200, body: 'Thread ID added successfully.' };
         } catch (error) {
-            context.log.error(`Error interacting with Cosmos DB: ${error.message}`);
+            context.log(`Error interacting with Cosmos DB: ${error.message}`);
             return { status: 500, body: 'Internal server error' };
         }
     }
