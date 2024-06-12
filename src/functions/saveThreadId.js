@@ -1,6 +1,7 @@
 const { CosmosClient } = require("@azure/cosmos");
 const { app } = require('@azure/functions');
 const crypto = require('crypto');
+const { DateTime } = require('luxon');
 
 app.http('saveThreadId', {
     methods: ['POST'],
@@ -61,22 +62,24 @@ app.http('saveThreadId', {
 
             if (items.length > 0) {
                 item = items[0];
-                threadList = JSON.parse(item.threads);
+                threadList = item.threads || [];
 
-                if (threadList.includes(threadID)) {
+                if (threadList.some(thread => thread.threadID === threadID)) {
                     context.log('Duplicate threadID found. Not adding.');
                     return { status: 200, body: 'Thread ID already exists. Not added again.' };
                 }
 
-                threadList.push(threadID);
-                item.threads = JSON.stringify(threadList);
+                const estTimestamp = DateTime.now().setZone('America/New_York').toISO();
+                threadList.push({ threadID: threadID, timestamp: estTimestamp });
+                item.threads = threadList;
             } else {
                 // Create a new entry for the phone number
-                threadList = [threadID];
+                const estTimestamp = DateTime.now().setZone('America/New_York').toISO();
+                threadList = [{ threadID: threadID, timestamp: estTimestamp }];
                 item = {
                     id: crypto.randomBytes(16).toString("hex"),
                     phoneNumber: phoneNumber,
-                    threads: JSON.stringify(threadList)
+                    threads: threadList
                 };
             }
 
