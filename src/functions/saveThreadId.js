@@ -11,7 +11,7 @@ app.http('saveThreadId', {
         const databaseId = process.env.CosmosDatabaseId;
         const containerId = process.env.CosmosContainerId;
 
-        context.log('HTTP trigger function processed a request.');
+        
 
         const body = await request.text();
         let data;
