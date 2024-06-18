@@ -25,6 +25,7 @@ app.http('saveThreadId', {
 
         let phoneNumber = data.phoneNumber;
         const threadID = data.threadID;
+        const playbackDuration = data.playbackDuration !== undefined ? data.playbackDuration : "0";
 
         if (!phoneNumber || !threadID) {
             context.log('Invalid input: phoneNumber or threadID is missing.');
@@ -64,18 +65,21 @@ app.http('saveThreadId', {
                 item = items[0];
                 threadList = item.threads || [];
 
-                if (threadList.some(thread => thread.threadID === threadID)) {
-                    context.log('Duplicate threadID found. Not adding.');
-                    return { status: 200, body: 'Thread ID already exists. Not added again.' };
+                const existingThread = threadList.find(thread => thread.threadID === threadID);
+                const estTimestamp = DateTime.now().setZone('America/New_York').toISO();
+
+                if (existingThread) {
+                    existingThread.playbackDuration = playbackDuration;
+                    existingThread.timestamp = estTimestamp;
+                } else {
+                    threadList.push({ threadID: threadID, playbackDuration: playbackDuration, timestamp: estTimestamp });
                 }
 
-                const estTimestamp = DateTime.now().setZone('America/New_York').toISO();
-                threadList.push({ threadID: threadID, timestamp: estTimestamp });
                 item.threads = threadList;
             } else {
                 // Create a new entry for the phone number
                 const estTimestamp = DateTime.now().setZone('America/New_York').toISO();
-                threadList = [{ threadID: threadID, timestamp: estTimestamp }];
+                threadList = [{ threadID: threadID, playbackDuration: playbackDuration, timestamp: estTimestamp }];
                 item = {
                     id: crypto.randomBytes(16).toString("hex"),
                     phoneNumber: phoneNumber,
@@ -85,8 +89,8 @@ app.http('saveThreadId', {
 
             await container.items.upsert(item);
 
-            context.log('Thread ID added successfully.');
-            return { status: 200, body: 'Thread ID added successfully.' };
+            context.log('Thread ID added/updated successfully.');
+            return { status: 200, body: 'Thread ID added/updated successfully.' };
         } catch (error) {
             context.log(`Error interacting with Cosmos DB: ${error.message}`);
             return { status: 500, body: 'Internal server error' };
